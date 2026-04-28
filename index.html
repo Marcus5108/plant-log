@@ -1,0 +1,250 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>Plant Log</title>
+
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+
+  <style>
+    body {
+      font-family: Arial;
+      background: #f4f7f4;
+      padding: 20px;
+    }
+
+    h1 { color: #2f5d34; }
+
+    form {
+      background: white;
+      padding: 15px;
+      border-radius: 8px;
+      margin-bottom: 20px;
+    }
+
+    input, select, button {
+      display: block;
+      margin: 10px 0;
+      padding: 8px;
+      width: 100%;
+    }
+
+    #plantList {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
+      gap: 10px;
+    }
+
+    .plant {
+      background: white;
+      padding: 10px;
+      border-radius: 8px;
+      border: 1px solid #ddd;
+      cursor: pointer;
+      text-align: center;
+    }
+
+    img {
+      max-width: 100%;
+      height: 100px;
+      object-fit: cover;
+      border-radius: 6px;
+    }
+  </style>
+</head>
+
+<body>
+
+<h1>🌿 Plant Log</h1>
+
+<form id="plantForm">
+  <input id="name" placeholder="Plant Name" required>
+  <input id="location" placeholder="Location" required>
+
+  <select id="season">
+    <option>Spring</option>
+    <option>Summer</option>
+    <option>Fall</option>
+    <option>Winter</option>
+  </select>
+
+  <select id="type">
+    <option>Flower</option>
+    <option>Tree</option>
+    <option>Herb</option>
+    <option>Shrub</option>
+    <option>Grass</option>
+  </select>
+
+  <select id="health">
+    <option>Healthy</option>
+    <option>Unhealthy</option>
+    <option>Undetermined</option>
+  </select>
+
+  <input type="file" id="image" accept="image/*">
+
+  <button type="submit">Add Plant</button>
+</form>
+
+<!-- 🔐 LOGIN SECTION (FIXED) -->
+<div>
+  <h2>Login</h2>
+  <input id="email" placeholder="Email">
+  <input id="password" type="password" placeholder="Password">
+
+  <button onclick="login()">Login</button>
+  <button onclick="signup()">Sign Up</button>
+  <button onclick="resetPassword()">Reset Password</button>
+</div>
+
+<div id="plantList"></div>
+
+<script>
+console.log("SCRIPT LOADED");
+
+/* ---------------- SUPABASE ---------------- */
+const SUPABASE_URL = "https://afncoixfquvrgycnvvmv.supabase.co";
+const SUPABASE_ANON_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImFmbmNvaXhmcXV2cmd5Y252dm12Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzY4MjA2MjksImV4cCI6MjA5MjM5NjYyOX0.yBAAoB3PcVYXMl4wvIN11bW_nxEmf4CQqWGn-D66NRI";
+
+const { createClient } = supabase;
+const db = createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+
+/* ---------------- STATE ---------------- */
+let plants = [];
+
+/* ---------------- LOAD ---------------- */
+async function loadPlants() {
+  const { data, error } = await db.from("plants").select("*").order("id");
+
+  if (error) {
+    console.error(error);
+    return;
+  }
+
+  plants = data;
+  displayPlants();
+}
+
+loadPlants();
+
+/* ---------------- ADD ---------------- */
+document.getElementById("plantForm").addEventListener("submit", function(e) {
+  e.preventDefault();
+
+  const file = document.getElementById("image").files[0];
+
+  if (file) {
+    const reader = new FileReader();
+    reader.onload = () => savePlant(reader.result);
+    reader.readAsDataURL(file);
+  } else {
+    savePlant(null);
+  }
+});
+
+async function savePlant(imageData) {
+  const user = (await db.auth.getUser()).data.user;
+
+  const plant = {
+    name: document.getElementById("name").value,
+    location: document.getElementById("location").value,
+    season: document.getElementById("season").value,
+    type: document.getElementById("type").value,
+    health: document.getElementById("health").value,
+    image: imageData,
+    user_id: user.id
+  };
+
+  const { error } = await db.from("plants").insert([plant]);
+
+  if (error) {
+    console.error(error);
+    alert(error.message);
+    return;
+  }
+
+  loadPlants();
+}
+
+/* ---------------- DISPLAY ---------------- */
+function displayPlants() {
+  const list = document.getElementById("plantList");
+  list.innerHTML = "";
+
+  plants.forEach((plant) => {
+    const div = document.createElement("div");
+    div.className = "plant";
+
+    div.innerHTML = `
+      <strong>${plant.name}</strong><br>
+      ${plant.image ? `<img src="${plant.image}">` : ""}
+    `;
+
+    div.onclick = () => {
+      window.location.href = `plant.html?id=${plant.id}`;
+    };
+
+    list.appendChild(div);
+  });
+}
+
+/* ---------------- AUTH ---------------- */
+async function login() {
+  const email = document.getElementById("email").value;
+  const password = document.getElementById("password").value;
+
+  const { data, error } = await db.auth.signInWithPassword({
+    email,
+    password
+  });
+
+  if (error) {
+    alert(error.message);
+    return;
+  }
+
+  alert("Logged in!");
+}
+
+async function signup() {
+  const email = document.getElementById("email").value;
+  const password = document.getElementById("password").value;
+
+  const { data, error } = await db.auth.signUp({
+    email,
+    password
+  });
+
+  if (error) {
+    alert(error.message);
+    return;
+  }
+
+  alert("Account created! Now log in.");
+}
+
+async function resetPassword() {
+  const email = document.getElementById("email").value;
+
+  if (!email) {
+    alert("Enter your email first");
+    return;
+  }
+
+  const { error } = await db.auth.resetPasswordForEmail(email, {
+    redirectTo: "https://Marcus5108.github.io/plant-log/reset.html"
+  });
+
+  if (error) {
+    alert(error.message);
+    return;
+  }
+
+  alert("Password reset email sent!");
+}
+
+</script>
+
+</body>
+</html>

@@ -1,0 +1,93 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>Plant Details</title>
+
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+
+  <style>
+    body {
+      font-family: Arial;
+      background: #f4f7f4;
+      padding: 20px;
+    }
+
+    .box {
+      background: white;
+      padding: 20px;
+      border-radius: 10px;
+      max-width: 500px;
+      margin: auto;
+      text-align: center;
+    }
+
+    img {
+      max-width: 250px;
+      max-height: 250px;
+      border-radius: 8px;
+      margin-top: 10px;
+    }
+
+    button {
+      margin-top: 20px;
+      padding: 10px;
+      width: 100%;
+    }
+  </style>
+</head>
+
+<body>
+
+<div class="box" id="plantBox">Loading...</div>
+
+<button onclick="goBack()">Back</button>
+
+<script>
+const SUPABASE_URL = "https://afncoixfquvrgycnvvmv.supabase.co";
+const SUPABASE_ANON_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImFmbmNvaXhmcXV2cmd5Y252dm12Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzY4MjA2MjksImV4cCI6MjA5MjM5NjYyOX0.yBAAoB3PcVYXMl4wvIN11bW_nxEmf4CQqWGn-D66NRI";
+
+const { createClient } = supabase;
+const db = createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+
+const params = new URLSearchParams(window.location.search);
+const id = params.get("id");
+
+loadPlant();
+
+async function loadPlant() {
+  const { data, error } = await db.from("plants").select("*").eq("id", id).single();
+
+  if (error || !data) {
+    document.getElementById("plantBox").innerHTML = "Plant not found";
+    return;
+  }
+
+  const p = data;
+
+  document.getElementById("plantBox").innerHTML = `
+    <h2>${p.name}</h2>
+    <p>${p.location}</p>
+    <p>${p.season}</p>
+    <p>${p.type}</p>
+    <p>${p.health}</p>
+    ${p.image ? `<img src="${p.image}">` : ""}
+    <button onclick="deletePlant(${p.id})">Delete</button>
+  `;
+}
+
+async function deletePlant(id) {
+  const ok = confirm("Delete this plant?");
+  if (!ok) return;
+
+  await db.from("plants").delete().eq("id", id);
+  window.location.href = "index.html";
+}
+
+function goBack() {
+  window.location.href = "index.html";
+}
+</script>
+
+</body>
+</html>
